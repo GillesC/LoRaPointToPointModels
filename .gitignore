@@ -1,0 +1,16 @@
+*.pyc
+.vscode/
+*.html
+*.pkl
+.idea/encodings.xml
+.idea/modules.xml
+.idea/vcs.xml
+.idea/other.xml
+.idea/misc.xml
+.idea/workspace.xml
+.idea/LoRaCoverageMeasurements.iml
+.idea/deployment.xml
+.idea/codeStyles/codeStyleConfig.xml
+processing/python.log
+*.pdf
+*.mat

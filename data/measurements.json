@@ -1,0 +1,18 @@
+{
+	"measurements" : [
+		"campus",
+		"seaside",
+		"forest"
+	],
+
+	"campus" : {
+		"center": [51.0595576, 3.7085241]
+	},
+
+	"seaside" : {
+		"center": [51.149110, 2.716344]
+	},
+	"forest" : {
+		"center": [51.1638853, 3.5785536]
+	}
+}
