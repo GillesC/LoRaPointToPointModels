@@ -52,16 +52,18 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
         fig = plt.figure(figsize=(4, 3))
         plt.xscale('log')
 
-        censored_packets_mask = data[measurement]["censored_packets_mask"]
+        df = data[measurement]["data"]
+        uncensored_packets_mask = np.invert(data[measurement]["censored_packets_mask"])
+
+        df_uncensored = df.loc[uncensored_packets_mask]
+        d_uncensored = df_uncensored["distance"].values
+        pld_uncensored =df_uncensored["pl_db"].values
+
+        plt.scatter(d_uncensored, pld_uncensored, marker='x', label="Measured Path Loss", s=1, c='0.75')
 
         df = path_loss_estimates.loc[path_loss_estimates['Measurement'] == measurement]
 
-        d_all = df["distance"].values
-        pld_all = df["pl_db"].values
-
-        plt.scatter(d_all, pld_all, marker='x', label="Measured Path Loss", s=1, c='0.75')
-
-        for ix, row in df.iterrow():
+        for ix, row in df.iterrows():
             plt.plot(row['Distances'], row['PLd'], label=F"{row['Weight']}{row['Std']}{row['Model']}")
 
         plt.xlabel(r'Log distance (m)')
