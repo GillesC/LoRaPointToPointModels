@@ -34,22 +34,15 @@ def get_weights(d, weight_type, num_bins=100):
     n_b = hist[inds]
     w = (1.0 / n_b) * (total_points / num_bins)
 
-    # impose maximum of w = 1 when only 2% of total in bin
-    # to not overfit on data with under-samples distance range
-
-    zipped = zip(hist.copy(), range(len(hist)))
-    zipped = sorted(zipped, key=lambda x: x[0])
-
-    # avg_pints_per_bin = 100%/num_bins
     # limit the < 1% of the bins being over sampled
-    allowed_procent = 1/num_bins
+    avg_number_sampel_per_bin = total_points/num_bins
+
+
     x_percent_limit = []
-    sum = 0
-    for _hist, _hist_ix in zipped:
-        if sum > total_points * (allowed_procent):
-            break
-        x_percent_limit.append(_hist_ix)
-        sum = sum + _hist
+    for ix, h in enumerate(hist):
+        # less than 5 % of the average
+        if h < avg_number_sampel_per_bin * 0.05:
+            x_percent_limit.append(ix)
 
     w = [1 if ix in x_percent_limit else w[ix] for ix in inds]
     return np.array(w)

@@ -40,6 +40,23 @@ input_file_estimated_pl_path = os.path.join(input_path, "estimated_path_loss.pkl
 
 output_file = os.path.abspath(os.path.join(input_path, "estimated_path_loss.pkl"))
 
+white_list = ["Censored", "distant_dependent", "Dual Slope"]
+black_list = []
+
+ht = 1.75  # m
+hr = 1.75
+wavelength = scipy.constants.speed_of_light / (868 * 10 ** 6)
+
+d_break_theoretical = (4 * ht * hr) / wavelength
+
+
+def all_white_listed(white_list, values):
+    for x in white_list:
+        if x not in values:
+            return False
+    return True
+
+
 with open(os.path.join(path_to_measurements, "measurements.json")) as f:
     config = json.load(f)
     measurements = config["measurements"]
@@ -53,22 +70,36 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
         plt.xscale('log')
 
         df = data[measurement]["data"]
+        d_all = df["distance"].values
         uncensored_packets_mask = np.invert(data[measurement]["censored_packets_mask"])
 
         df_uncensored = df.loc[uncensored_packets_mask]
         d_uncensored = df_uncensored["distance"].values
-        pld_uncensored =df_uncensored["pl_db"].values
+        pld_uncensored = df_uncensored["pl_db"].values
 
         plt.scatter(d_uncensored, pld_uncensored, marker='x', label="Measured Path Loss", s=1, c='0.75')
 
         df = path_loss_estimates.loc[path_loss_estimates['Measurement'] == measurement]
 
+        if "Dual Slope" in white_list and "Dual Slope" not in black_list:
+            plt.axvline(d_break_theoretical, ls="--", c='0.75')
+
         for ix, row in df.iterrows():
-            plt.plot(row['Distances'], row['PLd'], label=F"{row['Weight']}{row['Std']}{row['Model']}")
+
+            if all_white_listed(white_list, row.values) and not any(x in black_list for x in row.values):
+                print(row['Params'])
+
+                sigma_bound_up = row['PLm'] + row['TwoSigmaBound']
+                sigma_bound_down = row['PLm'] - row['TwoSigmaBound']
+                p = plt.plot(row['Distances'], row['PLm'], label=F"{row['Weight']}{row['Std']}{row['Model']}{row['Censored']}")
+                plt.fill_between(x=row['Distances'], y1=sigma_bound_down, y2=sigma_bound_up, alpha=0.05)
+                plt.plot(row['Distances'], sigma_bound_down, color=p[0].get_color(), ls="--", alpha=0.5)
+                plt.plot(row['Distances'], sigma_bound_up, color=p[0].get_color(), ls="--", alpha=0.5)
 
         plt.xlabel(r'Log distance (m)')
         plt.ylabel(r'Path Loss (dB)')
 
+        plt.legend()
         plt.show()
 
         print(F"Done for {measurement}")
