@@ -22,7 +22,7 @@ import os
 
 import numpy as np
 import pandas as pd
-import censored_ml as model
+import regression_models as model
 from get_weights import get_weights, histcounts
 from LatexifyMatplotlib import LatexifyMatplotlib as lm
 import matplotlib.pyplot as plt

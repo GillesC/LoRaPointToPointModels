@@ -24,7 +24,7 @@ import numpy as np
 import pandas as pd
 import scipy.constants
 
-import censored_ml as model
+import regression_models as model
 from get_weights import get_weights
 
 currentDir = os.path.dirname(os.path.abspath(__file__))
