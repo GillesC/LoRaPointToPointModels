@@ -86,24 +86,36 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
             'NumBins': num_bins,
             'Distances': d_plot_uncensored,
             'TwoSigmaBound': two_sigma_bound,
-            "Censored": "Uncensored"
+            "Censored": "Uncensored",
+            "MLValue": None,
         }, ignore_index=True)
+        print(result_df.iloc[-1, :])
 
         for (i, (sigma, sigma_name)) in enumerate(zip([sigma_ols, [0, sigma_ols]], ["constant", "distant_dependent"])):
 
             for weight_type, weight_name in zip([None, w_lin, w_log, w_sq], ["No", "Linear", "Log10", "Square"]):
-                (pld0, n, *_) = model.ml(d0=1, d=d_uncensored, pld=pld_uncensored, c=148, pld0=pld0_ols, n=n_ols,
-                                         sigma=sigma, weights=weight_type,
-                                         censored=False)
+                res = model.ml_with_constraints(d0=1, d=d_uncensored, pld=pld_uncensored, c=148, pld0=pld0_ols, n=n_ols,
+                                          sigma=sigma, weights=weight_type,
+                                          censored=False)
+
+                print(res)
+                (pld0, n, *_) = res.x
+
 
                 plm = pld0 + 10 * n * np.log10(d_plot_uncensored)
                 if len(_) == 1:
                     sig = _[0]
-                    two_sigma_bound = np.zeros(len(d_plot_uncensored)) + 2 * sig
+                    two_sigma_bound = np.repeat(2 * sig, len(d_plot_uncensored))
+                    sigma_est = np.repeat(sig, len(d_uncensored))
                 else:
                     a = _[0]
                     b = _[1]
-                    two_sigma_bound = 2 * (a * 10 * np.log10(d_plot_uncensored) + b)
+                    two_sigma_bound = 2 * (a * np.log10(d_plot_uncensored) + b)
+                    sigma_est = a * np.log10(d_uncensored) + b
+
+                plm_est = pld0 + 10 * n * np.log10(d_uncensored)
+
+                ml_value = model.ml_value(pld=pld_uncensored, sigma_est=sigma_est, plm_est=plm_est)
 
                 result_df = result_df.append({
                     'Measurement': measurement,
@@ -116,7 +128,10 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
                     'Distances': d_plot_uncensored,
                     'TwoSigmaBound': two_sigma_bound,
                     "Censored": "Uncensored",
+                    "MLValue": ml_value
                 }, ignore_index=True)
+
+                print(result_df.iloc[-1, :])
 
             w_lin_all = get_weights(d_all, weight_type='linear', num_bins=num_bins)
             w_log_all = get_weights(d_all, weight_type='log10', num_bins=num_bins)
@@ -124,18 +139,27 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
 
             for weight_type, weight_name in zip([None, w_lin_all, w_log_all, w_sq_all],
                                                 ["No", "Linear", "Log10", "Square"]):
-                (pld0, n, *_) = model.ml(d0=1, d=d_all, pld=pld_all, c=148, pld0=pld0_ols, n=n_ols,
-                                         sigma=sigma, weights=weight_type, censored_mask=censored_packets_mask,
-                                         censored=True)
+                res = model.ml_with_constraints(d0=1, d=d_all, pld=pld_all, c=148, pld0=pld0_ols, n=n_ols,
+                                          sigma=sigma, weights=weight_type, censored_mask=censored_packets_mask,
+                                          censored=True)
+
+                print(res)
+                (pld0, n, *_) = res.x
                 plm = pld0 + 10 * n * np.log10(d_plot)
+                plm_est = pld0 + 10 * n * np.log10(d_all)
 
                 if len(_) == 1:
                     sig = _[0]
-                    two_sigma_bound = np.zeros(len(d_plot)) + 2 * sig
+                    two_sigma_bound = np.repeat(2 * sig, len(d_plot))
+                    sigma_est = np.repeat(2 * sig, len(d_all))
                 else:
                     a = _[0]
                     b = _[1]
                     two_sigma_bound = 2 * (a * np.log10(d_plot) + b)
+                    sigma_est = (a * np.log10(d_all) + b)
+
+                ml_value = model.ml_value(pld=pld_all, plm_est=plm_est, sigma_est=sigma_est,
+                                          censored_mask=censored_packets_mask)
 
                 result_df = result_df.append({
                     'Measurement': measurement,
@@ -147,8 +171,11 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
                     'NumBins': num_bins,
                     'Distances': d_plot,
                     'TwoSigmaBound': two_sigma_bound,
-                    "Censored": "Censored"
+                    "Censored": "Censored",
+                    "MLValue": ml_value
                 }, ignore_index=True)
+
+                print(result_df.iloc[-1, :])
 
         ht = 1.75  # m
         hr = 1.75
@@ -156,6 +183,9 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
 
         d_break = (4 * ht * hr) / wavelength
 
+        print(F"Done for {measurement}")
+
+"""
         print(F"Processing the dual-slope model")
         for (i, (sigma, sigma_name)) in enumerate(
                 zip([sigma_ols, [0, 0, sigma_ols]], ["constant", "distant_dependent"])):
@@ -169,10 +199,11 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
                 else:
                     x0 = [pld0_ols, n_ols, n_ols, d_break, sigma[0], sigma[1], sigma[2]]
 
-                (pld0, n1, n2, d_break, *_) = model.ml_dual_slope(d0=d0, d=d_all, pld=pld_all, c=148, x0=x0,
-                                                                  weights=weight_type,
-                                                                  censored_mask=censored_packets_mask,
-                                                                  censored=True)
+                xopt, fopt, *_ = model.ml_dual_slope(d0=d0, d=d_all, pld=pld_all, c=148, x0=x0,
+                                                     weights=weight_type,
+                                                     censored_mask=censored_packets_mask,
+                                                     censored=True)
+                (pld0, n1, n2, d_break, *_) = xopt
                 mask_below_d_break = d_plot < d_break
                 mask_above_d_break = np.invert(mask_below_d_break)
 
@@ -181,9 +212,17 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
                 plm[mask_above_d_break] = 10 * n1 * np.log10(d_break / d0) + 10 * n2 * np.log10(
                     d_plot[mask_above_d_break] / d_break) + pld0
 
+                mask_below_d_break_est = d_all < d_break
+                mask_above_d_break_est = np.invert(mask_below_d_break_est)
+                plm_est = np.zeros(len(d_all))
+                plm_est[mask_below_d_break_est] = 10 * n1 * np.log10(d_all[mask_below_d_break_est] / d0) + pld0
+                plm_est[mask_above_d_break_est] = 10 * n1 * np.log10(d_break / d0) + 10 * n2 * np.log10(
+                    d_all[mask_above_d_break_est] / d_break) + pld0
+
                 if len(_) == 1:
                     sig = _[0]
                     two_sigma_bound = np.zeros(len(d_plot)) + 2 * sig
+                    sigma_est = np.repeat(sig, len(d_all))
                 else:
                     a1 = _[0]
                     a2 = _[1]
@@ -194,7 +233,13 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
                     two_sigma_bound[mask_above_d_break] = a1 * np.log10(d_plot[mask_above_d_break]) + a2 * np.log10(
                         d_plot[mask_above_d_break] / d_break) + b
 
-                    two_sigma_bound = 2 * (a1 * 10 * np.log10(d_break) + b)
+                    sigma_est = np.zeros(len(d_all))
+                    sigma_est[mask_below_d_break_est] = a1 * np.log10(d_all[mask_below_d_break_est]) + b
+                    sigma_est[mask_above_d_break_est] = a1 * np.log10(d_all[mask_above_d_break_est]) + a2 * np.log10(
+                        d_all[mask_above_d_break_est] / d_break) + b
+
+                ml_value = model.ml_value(pld=pld_all, plm_est=plm_est, sigma_est=sigma_est,
+                                          censored_mask=censored_packets_mask)
 
                 result_df = result_df.append({
                     'Measurement': measurement,
@@ -206,9 +251,12 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
                     'NumBins': num_bins,
                     'Distances': d_plot,
                     'TwoSigmaBound': two_sigma_bound,
-                    "Censored": "Censored"
+                    "Censored": "Censored",
+                    "MLValue": ml_value
                 }, ignore_index=True)
 
-        print(F"Done for {measurement}")
+                print(result_df.iloc[-1, :])
+"""
+
 
 result_df.to_pickle(output_file)

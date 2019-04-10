@@ -19,6 +19,7 @@ r"""
 
 import json
 import os
+import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -40,17 +41,17 @@ input_file_estimated_pl_path = os.path.join(input_path, "estimated_path_loss.pkl
 
 output_file = os.path.abspath(os.path.join(input_path, "estimated_path_loss.pkl"))
 
-white_list = ["Censored", "distant_dependent", "Dual Slope"]
-black_list = []
-
+white_list = np.array([])
+black_list = np.array(["Dual Slope", "Uncensored"])
 ht = 1.75  # m
 hr = 1.75
 wavelength = scipy.constants.speed_of_light / (868 * 10 ** 6)
 
 d_break_theoretical = (4 * ht * hr) / wavelength
-
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 def all_white_listed(white_list, values):
+
     for x in white_list:
         if x not in values:
             return False
@@ -89,9 +90,10 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
             if all_white_listed(white_list, row.values) and not any(x in black_list for x in row.values):
                 print(row['Params'])
 
-                sigma_bound_up = row['PLm'] + row['TwoSigmaBound']
-                sigma_bound_down = row['PLm'] - row['TwoSigmaBound']
-                p = plt.plot(row['Distances'], row['PLm'], label=F"{row['Weight']}{row['Std']}{row['Model']}{row['Censored']}")
+                sigma_bound_up = row['PLm'] + row['TwoSigmaBound']/2
+                sigma_bound_down = row['PLm'] - row['TwoSigmaBound']/2
+                p = plt.plot(row['Distances'], row['PLm'],
+                             label=F"{row['Weight']}{row['Std']}{row['Model']}{row['Censored']}{row['MLValue']}")
                 plt.fill_between(x=row['Distances'], y1=sigma_bound_down, y2=sigma_bound_up, alpha=0.05)
                 plt.plot(row['Distances'], sigma_bound_down, color=p[0].get_color(), ls="--", alpha=0.5)
                 plt.plot(row['Distances'], sigma_bound_up, color=p[0].get_color(), ls="--", alpha=0.5)

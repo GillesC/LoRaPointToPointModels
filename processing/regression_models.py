@@ -2,6 +2,9 @@ import numpy as np
 import scipy.optimize
 import statsmodels.api as sm
 from scipy.stats import norm
+import warnings
+
+warnings.filterwarnings("error")
 
 
 def ml(d0, d, pld, c, pld0, n, sigma, censored_mask=None, weights=None, censored=True):
@@ -31,33 +34,36 @@ def ml(d0, d, pld, c, pld0, n, sigma, censored_mask=None, weights=None, censored
             _b = _sigma[1]
             _sigma = _a * np.log10(d / d0) + _b
         else:
-            _sigma = np.ones(d.shape) * _sigma
+            _sigma = np.repeat(_sigma, d.shape)
 
         plm = 10 * _n * np.log10(d / d0) + _pld0
 
+        _sigma[_sigma < 0.001] = 0.001
+
         if censored:
-            plm_uncensored = plm[uncensored_mask]
-            w_uncensored = w[uncensored_mask]
-            sigma_uncensored = _sigma[uncensored_mask]
+            plm_uncensored = plm[uncensored_mask].copy()
+            w_uncensored = w[uncensored_mask].copy()
+            sigma_uncensored = _sigma[uncensored_mask].copy()
+            sigma_censored = _sigma[censored_mask].copy()
         else:
             plm_uncensored = plm
             w_uncensored = w
-            sigma_uncensored = _sigma
+            sigma_uncensored = _sigma.copy()
 
-        llh = np.multiply(w_uncensored,
-                          (-np.log(sigma_uncensored) + np.log(
-                              norm.pdf((pld_uncensored - plm_uncensored) / sigma_uncensored))))
+        norm_pdf = norm.pdf((pld_uncensored - plm_uncensored) / sigma_uncensored)
+        norm_pdf[norm_pdf < 0.0000001] = 0.0000001
+        llh = np.multiply(w_uncensored, -np.log(sigma_uncensored) + np.log(norm_pdf))
 
         if censored:
             llh_censored = np.multiply(w[censored_mask],
-                                       (np.log(1 - norm.cdf((c - plm[censored_mask]) / _sigma[censored_mask]))))
+                                       (np.log(1 - norm.cdf((c - plm[censored_mask]) / sigma_censored))))
             llh = np.append(arr=llh, values=llh_censored)
 
         return - np.sum(llh)
 
     x0 = np.array([pld0, n])
     x0 = np.append(x0, sigma)
-    return scipy.optimize.fmin(llf, x0, maxiter=2000000, maxfun=2000000, disp=False)
+    return scipy.optimize.fmin(llf, x0, maxiter=20000, maxfun=20000, disp=False, full_output=True)
 
 
 def ols(d0, d, pld):
@@ -131,6 +137,11 @@ def ml_dual_slope(d0, d, pld, x0, c=148, censored_mask=None, weights=None, censo
         plm[mask_above_d_break] = 10 * _n_1 * np.log10(_d_break / d0) + 10 * _n_2 * np.log10(
             d[mask_above_d_break] / _d_break) + _pld0
 
+        if len(_sigma[_sigma < 0]) > 1:
+            return float('inf')
+
+        _sigma[_sigma < 0.001] = 0.001
+
         if censored:
             plm_uncensored = plm[uncensored_mask]
             w_uncensored = w[uncensored_mask]
@@ -151,4 +162,100 @@ def ml_dual_slope(d0, d, pld, x0, c=148, censored_mask=None, weights=None, censo
 
         return - np.sum(llh)
 
-    return scipy.optimize.fmin(llf, x0, maxiter=20000, maxfun=20000, disp=False)
+    return scipy.optimize.fmin(llf, x0, maxiter=20000, maxfun=20000, disp=False, full_output=True)
+
+
+def ml_value(pld, plm_est, sigma_est, censored_mask=None, c=148):
+    if censored_mask is not None:
+        uncensored_mask = np.invert(censored_mask)
+        llh = -np.log(sigma_est[uncensored_mask]) + np.log(
+            norm.pdf((pld[uncensored_mask] - plm_est[uncensored_mask]) / sigma_est[uncensored_mask]))
+        llh_censored = np.log(1 - norm.cdf((c - plm_est[censored_mask]) / sigma_est[censored_mask]))
+        llh = np.append(arr=llh, values=llh_censored)
+    else:
+        norm_pdf = norm.pdf((pld - plm_est) / sigma_est)
+        if len(norm_pdf[norm_pdf < 0]):
+            print("WTF")
+        llh = -np.log(sigma_est) + np.log(norm_pdf)
+
+    return np.sum(np.exp(llh))
+
+
+def ml_with_constraints(d0, d, pld, c, pld0, n, sigma, censored_mask=None, weights=None, censored=True):
+    assert (censored_mask is not None) == censored, ValueError("Define the censored_mask if censored data is included")
+
+    def con(x):
+        _sigma = x[2:]
+
+        if len(_sigma) == 2:
+            _a = _sigma[0]
+            _b = _sigma[1]
+            if _a < 0:
+                return _a
+            _sigma = _a * np.log10(d / d0) + _b
+        else:
+            _sigma = np.repeat(_sigma, len(d))
+
+        return _sigma.min()
+
+    cons = [{
+        'type': 'ineq',
+        'fun': con
+    }]
+
+    if weights is None:
+        w = np.ones(d.shape)
+    else:
+        w = weights
+
+    if censored:
+        uncensored_mask = np.invert(censored_mask)
+        pld_uncensored = pld[uncensored_mask]
+    else:
+        pld_uncensored = pld
+
+    def llf(x):
+        _pld0 = x[0]
+        _n = x[1]
+        _sigma = x[2:]  # in case of _sigma ~d -> a and b
+
+        # if _n < 1:
+        #    return float('inf')
+
+        if len(_sigma) == 2:
+            _a = _sigma[0]
+            _b = _sigma[1]
+            _sigma = _a * np.log10(d / d0) + _b
+        else:
+            _sigma = np.repeat(_sigma, d.shape)
+
+        plm = 10 * _n * np.log10(d / d0) + _pld0
+
+        _sigma[_sigma < 0.001] = 0.001
+
+        if censored:
+            plm_uncensored = plm[uncensored_mask].copy()
+            w_uncensored = w[uncensored_mask].copy()
+            sigma_uncensored = _sigma[uncensored_mask].copy()
+            sigma_censored = _sigma[censored_mask].copy()
+        else:
+            plm_uncensored = plm
+            w_uncensored = w
+            sigma_uncensored = _sigma.copy()
+
+        norm_pdf = norm.pdf((pld_uncensored - plm_uncensored) / sigma_uncensored)
+        norm_pdf[norm_pdf < 0.0000001] = 0.0000001
+        llh = np.multiply(w_uncensored, -np.log(sigma_uncensored) + np.log(norm_pdf))
+
+        if censored:
+            llh_censored = np.multiply(w[censored_mask],
+                                       (np.log(1 - norm.cdf((c - plm[censored_mask]) / sigma_censored))))
+            llh = np.append(arr=llh, values=llh_censored)
+
+        return - np.sum(llh)
+
+    x0 = np.array([pld0, n])
+    x0 = np.append(x0, sigma)
+    return scipy.optimize.minimize(llf, x0, constraints=cons, method='COBYLA', options={
+        'maxiter': 200000
+    })
