@@ -73,68 +73,50 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
 
         (pld0_ols, n_ols, sigma_ols) = model.ols(d0=1, d=d_uncensored, pld=pld_uncensored)
 
-        plm = pld0_ols + 10 * n_ols * np.log10(d_plot_uncensored)
-        two_sigma_bound = np.zeros(len(d_plot_uncensored)) + 2 * sigma_ols
+        sigma = [0, sigma_ols]
+        sigma_name = "distant_dependent_fixed"
+        w_lin_all = get_weights(d_all, weight_type='linear', num_bins=num_bins)
+        w_log_all = get_weights(d_all, weight_type='log10', num_bins=num_bins)
+        w_sq_all = get_weights(d_all, weight_type='square', num_bins=num_bins)
 
-        result_df = result_df.append({
-            'Measurement': measurement,
-            'Weight': 'None',
-            'Std': 'constant',
-            'Model': 'OLS',
-            'Params': (pld0_ols, n_ols, sigma_ols),
-            'PLm': plm,
-            'NumBins': num_bins,
-            'Distances': d_plot_uncensored,
-            'TwoSigmaBound': two_sigma_bound,
-            "Censored": "Uncensored",
-            "MLValue": None,
-        }, ignore_index=True)
-        print(result_df.iloc[-1, :])
+        for weight_type, weight_name in zip([None, w_lin_all, w_log_all, w_sq_all],
+                                            ["No", "Linear", "Log10", "Square"]):
+            res = model.ml_with_constraints(d0=1, d=d_all, pld=pld_all, c=148, pld0=pld0_ols, n=n_ols,
+                                            sigma=sigma, weights=weight_type, censored_mask=censored_packets_mask,
+                                            censored=True)
 
-        for (i, (sigma, sigma_name)) in enumerate(zip([sigma_ols, [0, sigma_ols]], ["distant_dependent"])):
+            print(res)
+            (pld0, n, *_) = res.x
+            plm = pld0 + 10 * n * np.log10(d_plot)
+            plm_est = pld0 + 10 * n * np.log10(d_all)
 
-            w_lin_all = get_weights(d_all, weight_type='linear', num_bins=num_bins)
-            w_log_all = get_weights(d_all, weight_type='log10', num_bins=num_bins)
-            w_sq_all = get_weights(d_all, weight_type='square', num_bins=num_bins)
+            if len(_) == 1:
+                sig = _[0]
+                two_sigma_bound = np.repeat(2 * sig, len(d_plot))
+                sigma_est = np.repeat(2 * sig, len(d_all))
+            else:
+                a = _[0]
+                b = _[1]
+                two_sigma_bound = 2 * (a * np.log10(d_plot) + b)
+                sigma_est = (a * np.log10(d_all) + b)
 
-            for weight_type, weight_name in zip([None, w_lin_all, w_log_all, w_sq_all],
-                                                ["No", "Linear", "Log10", "Square"]):
-                res = model.ml_with_constraints(d0=1, d=d_all, pld=pld_all, c=148, pld0=pld0_ols, n=n_ols,
-                                                sigma=sigma, weights=weight_type, censored_mask=censored_packets_mask,
-                                                censored=True)
+            ml_value = model.ml_value(pld=pld_all, plm_est=plm_est, sigma_est=sigma_est,
+                                      censored_mask=censored_packets_mask)
 
-                print(res)
-                (pld0, n, *_) = res.x
-                plm = pld0 + 10 * n * np.log10(d_plot)
-                plm_est = pld0 + 10 * n * np.log10(d_all)
+            result_df = result_df.append({
+                'Measurement': measurement,
+                'Weight': weight_name,
+                'Std': sigma_name,
+                'Model': 'Single Slope',
+                'Params': (pld0, n, *_),
+                'PLm': plm,
+                'NumBins': num_bins,
+                'Distances': d_plot,
+                'TwoSigmaBound': two_sigma_bound,
+                "Censored": "Censored",
+                "MLValue": ml_value
+            }, ignore_index=True)
 
-                if len(_) == 1:
-                    sig = _[0]
-                    two_sigma_bound = np.repeat(2 * sig, len(d_plot))
-                    sigma_est = np.repeat(2 * sig, len(d_all))
-                else:
-                    a = _[0]
-                    b = _[1]
-                    two_sigma_bound = 2 * (a * np.log10(d_plot) + b)
-                    sigma_est = (a * np.log10(d_all) + b)
-
-                ml_value = model.ml_value(pld=pld_all, plm_est=plm_est, sigma_est=sigma_est,
-                                          censored_mask=censored_packets_mask)
-
-                result_df = result_df.append({
-                    'Measurement': measurement,
-                    'Weight': weight_name,
-                    'Std': sigma_name,
-                    'Model': 'Single Slope',
-                    'Params': (pld0, n, *_),
-                    'PLm': plm,
-                    'NumBins': num_bins,
-                    'Distances': d_plot,
-                    'TwoSigmaBound': two_sigma_bound,
-                    "Censored": "Censored",
-                    "MLValue": ml_value
-                }, ignore_index=True)
-
-                print(result_df.iloc[-1, :])
+            print(result_df.iloc[-1, :])
 
 result_df.to_pickle(output_file)

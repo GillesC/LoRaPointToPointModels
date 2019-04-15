@@ -137,6 +137,6 @@ def save(filename, scale_legend=None, show=False, plt=None):
     if show:
         plt.show()
 
-    matplotlib2tikz.save(out, figure=fig, textsize=8, extra_axis_parameters=extra_axis_param)
+    matplotlib2tikz.save(out, figure=fig, textsize=8, extra_axis_parameters=extra_axis_param, float_format="{:.5g}")
 
 

@@ -54,15 +54,17 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
         df = pd.read_pickle(input_file_path)
         df = df[df.isPacket > 0]  # censored and uncensored packets
         print(F"Max. Path Loss = {df['pl_db'].max()}")
+        print(F" Found {util.numberOfRows(df[df['isPacket'] == 1])} uncensored packets.")
 
         censored_packets_mask = np.logical_or(df["isPacket"] == 2, df['pl_db'] > PL_THRESHOLD).values
-        print(F" Found {len(censored_packets_mask)} censored packets.")
+
         uncensored_packets_mask = np.invert(censored_packets_mask)
 
         df.loc[censored_packets_mask, "isPacket"] = 0
         df.loc[censored_packets_mask, "pl_db"] = PL_THRESHOLD
 
         num_censored_packets = censored_packets_mask.sum()
+        print(F" Found {num_censored_packets} censored packets.")
         print(F"{num_censored_packets} detected {num_censored_packets * 100 / util.numberOfRows(df):.2f}%")
 
         df = df[df["distance"] > 1]

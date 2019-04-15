@@ -91,16 +91,17 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
         }, ignore_index=True)
         print(result_df.iloc[-1, :])
 
-        for (i, (sigma, sigma_name)) in enumerate(zip([sigma_ols, [0, sigma_ols]], ["constant", "distant_dependent"])):
+        for (i, (sigma, sigma_name)) in enumerate(zip([sigma_ols], ["constant"])):
+
+        #for (i, (sigma, sigma_name)) in enumerate(zip([sigma_ols, [0, sigma_ols]], ["constant", "distant_dependent"])):
 
             for weight_type, weight_name in zip([None, w_lin, w_log, w_sq], ["No", "Linear", "Log10", "Square"]):
                 res = model.ml_with_constraints(d0=1, d=d_uncensored, pld=pld_uncensored, c=148, pld0=pld0_ols, n=n_ols,
-                                          sigma=sigma, weights=weight_type,
-                                          censored=False)
+                                                sigma=sigma, weights=weight_type,
+                                                censored=False)
 
                 print(res)
                 (pld0, n, *_) = res.x
-
 
                 plm = pld0 + 10 * n * np.log10(d_plot_uncensored)
                 if len(_) == 1:
@@ -140,8 +141,8 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
             for weight_type, weight_name in zip([None, w_lin_all, w_log_all, w_sq_all],
                                                 ["No", "Linear", "Log10", "Square"]):
                 res = model.ml_with_constraints(d0=1, d=d_all, pld=pld_all, c=148, pld0=pld0_ols, n=n_ols,
-                                          sigma=sigma, weights=weight_type, censored_mask=censored_packets_mask,
-                                          censored=True)
+                                                sigma=sigma, weights=weight_type, censored_mask=censored_packets_mask,
+                                                censored=True)
 
                 print(res)
                 (pld0, n, *_) = res.x
@@ -172,7 +173,8 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
                     'Distances': d_plot,
                     'TwoSigmaBound': two_sigma_bound,
                     "Censored": "Censored",
-                    "MLValue": ml_value
+                    "MLValue": ml_value,
+                    "OptimizeResult": res
                 }, ignore_index=True)
 
                 print(result_df.iloc[-1, :])
@@ -185,10 +187,10 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
 
         print(F"Done for {measurement}")
 
-"""
         print(F"Processing the dual-slope model")
+        #for (i, (sigma, sigma_name)) in enumerate( zip([sigma_ols, [0, 0, sigma_ols]], ["constant", "distant_dependent"])):
         for (i, (sigma, sigma_name)) in enumerate(
-                zip([sigma_ols, [0, 0, sigma_ols]], ["constant", "distant_dependent"])):
+                zip([sigma_ols], ["constant"])):
 
             for weight_type, weight_name in zip([None, w_lin_all, w_log_all, w_sq_all],
                                                 ["No", "Linear", "Log10", "Square"]):
@@ -199,11 +201,13 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
                 else:
                     x0 = [pld0_ols, n_ols, n_ols, d_break, sigma[0], sigma[1], sigma[2]]
 
-                xopt, fopt, *_ = model.ml_dual_slope(d0=d0, d=d_all, pld=pld_all, c=148, x0=x0,
-                                                     weights=weight_type,
-                                                     censored_mask=censored_packets_mask,
-                                                     censored=True)
-                (pld0, n1, n2, d_break, *_) = xopt
+                res = model.ml_dual_slope_with_constraints(d0=d0, d=d_all, pld=pld_all, c=148, x0=x0,
+                                                           weights=weight_type,
+                                                           censored_mask=censored_packets_mask,
+                                                           censored=True)
+                print(res)
+
+                (pld0, n1, n2, d_break, *_) = res.x
                 mask_below_d_break = d_plot < d_break
                 mask_above_d_break = np.invert(mask_below_d_break)
 
@@ -252,11 +256,10 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
                     'Distances': d_plot,
                     'TwoSigmaBound': two_sigma_bound,
                     "Censored": "Censored",
-                    "MLValue": ml_value
+                    "MLValue": ml_value,
+                    "OptimizeResult": res
                 }, ignore_index=True)
 
                 print(result_df.iloc[-1, :])
-"""
-
 
 result_df.to_pickle(output_file)
