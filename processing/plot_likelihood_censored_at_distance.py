@@ -50,7 +50,7 @@ def all_white_listed(white_list, values):
     return True
 
 
-d = range(1, 20 * 1000)
+
 fig, ax = plt.subplots(figsize=(4, 3))
 lm.latexify()
 plt.xscale('log')
@@ -77,13 +77,22 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
 
         for ix, row in df.iterrows():
             if all_white_listed(white_list, row.values) and not any(x in black_list for x in row.values):
-                (Pld0, n, sigma) = row['Params']
+                (Pld0, n, _sigma) = row['Params']
+
+                d = range(int(d_all.min()), int(d_all.max()))
 
                 plm = Pld0 + 10 * n * np.log10(d)
-                sigma = np.repeat(sigma, len(d))
+                sigma = np.repeat(_sigma, len(d))
 
                 llh_censored = 1 - norm.cdf((148 - plm) / sigma)
-                plt.plot(d, 1 - llh_censored, label=F"{measurement}")
+                p = plt.plot(d, 1 - llh_censored, label=F"{measurement}")
+
+                d = range(int(d_all.max()), 4200)
+                plm = Pld0 + 10 * n * np.log10(d)
+                sigma = np.repeat(_sigma, len(d))
+
+                llh_censored = 1 - norm.cdf((148 - plm) / sigma)
+                plt.plot(d, 1 - llh_censored, color=p[0].get_color(), ls="--", alpha=0.5)
 
     plt.xlabel(r'Distance (m)')
     plt.ylabel(r'Probability of Receiving a Packet below \(PL_{\textrm{th}}\)')

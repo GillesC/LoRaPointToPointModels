@@ -39,7 +39,7 @@ input_path = os.path.abspath(os.path.join(
 input_file_measurements_path = os.path.join(input_path, "processed_data_with_censored_data.pkl")
 input_file_estimated_pl_path = os.path.join(input_path, "estimated_path_loss.pkl")
 
-white_list = np.array(["Censored", "Dual Slope"])
+white_list = np.array(["Single Slope"])
 black_list = np.array(["distant_dependent"])
 ht = 1.75  # m
 hr = 1.75

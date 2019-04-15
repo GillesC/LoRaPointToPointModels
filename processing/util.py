@@ -1,4 +1,4 @@
-"""
+r"""
     ____  ____      _    __  __  ____ ___
    |  _ \|  _ \    / \  |  \/  |/ ___/ _ \
    | | | | |_) |  / _ \ | |\/| | |  | | | |
@@ -17,30 +17,27 @@
     Description:
 """
 
-import branca.colormap as cm
-import matplotlib as mpl
-import matplotlib.pyplot as plt
+#import branca.colormap as cm
 import numpy as np
 import pandas as pd
 
 
-def update(df, data) -> pd.DataFrame:
-    cond = data['Index'] != df['Index']
-    if False in cond:
+def update(df, data):
+    if data['Index'] in df['Index']:
+        cond = df['Index'] != data['Index']
         df.where(cond=cond, other=pd.DataFrame(data), inplace=True)
     else:
         df = df.append(data, ignore_index=True)
     return df
 
-
+"""
 def get_geojson_grid(df, n, plot_snr):
-    """
-
+    "
     :param df:
     :param n:
     :param plot_snr:
     :return:
-    """
+    "
     if plot_snr:
         values_to_plot_id = 'snr'
         caption = 'snr'
@@ -139,7 +136,7 @@ def get_geojson_grid(df, n, plot_snr):
         min_val, max_val)
     colormap.caption = caption.upper()
     return all_boxes, colormap
-
+"""
 
 def numberOfRows(df):
     return len(df.index)

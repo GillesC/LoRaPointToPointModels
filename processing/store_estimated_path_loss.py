@@ -26,7 +26,7 @@ import scipy.constants
 
 import regression_models as model
 from get_weights import get_weights
-from util import util
+import util as util
 
 currentDir = os.path.dirname(os.path.abspath(__file__))
 path_to_measurements = os.path.abspath(os.path.join(
@@ -47,7 +47,7 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
         result_df = pd.read_pickle(result_file)
     else:
         result_df = pd.DataFrame(
-            columns=['Measurement', 'Weight', 'Std', 'Model', 'Params', 'PLm', 'NumBins', "Distances"])
+            columns=['Index', 'Measurement', 'Weight', 'Std', 'Model', 'Params', 'PLm', 'NumBins', "Distances"])
 
     for measurement in measurements:
         print(F"--------------------- PATH LOSS MODEL {measurement} ---------------------")
@@ -173,7 +173,7 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
                 ml_value = model.ml_value(pld=pld_all, plm_est=plm_est, sigma_est=sigma_est,
                                           censored_mask=censored_packets_mask)
 
-                result_df = {
+                df_data = {
                     'Index': F"{measurement}-{weight_name}-{sigma_name}-Single Slope",
                     'Measurement': measurement,
                     'Weight': weight_name,
@@ -260,7 +260,7 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
                 ml_value = model.ml_value(pld=pld_all, plm_est=plm_est, sigma_est=sigma_est,
                                           censored_mask=censored_packets_mask)
 
-                result_df = {
+                df_data = {
                     'Index': F"{measurement}-{weight_name}-{sigma_name}-Dual Slope",
                     'Measurement': measurement,
                     'Weight': weight_name,
