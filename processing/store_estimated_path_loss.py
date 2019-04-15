@@ -26,6 +26,7 @@ import scipy.constants
 
 import regression_models as model
 from get_weights import get_weights
+from util import util
 
 currentDir = os.path.dirname(os.path.abspath(__file__))
 path_to_measurements = os.path.abspath(os.path.join(
@@ -36,14 +37,17 @@ input_path = os.path.abspath(os.path.join(
 input_file_name = "processed_data_with_censored_data.pkl"
 input_file_path = os.path.join(input_path, input_file_name)
 
-output_file = os.path.abspath(os.path.join(input_path, "estimated_path_loss.pkl"))
-
-result_df = pd.DataFrame(columns=['Measurement', 'Weight', 'Std', 'Model', 'Params', 'PLm', 'NumBins', "Distances"])
+result_file = os.path.abspath(os.path.join(input_path, "estimated_path_loss.pkl"))
 
 with open(os.path.join(path_to_measurements, "measurements.json")) as f:
     config = json.load(f)
     measurements = config["measurements"]
     data = pd.read_pickle(input_file_path)
+    if os.path.isfile(result_file):
+        result_df = pd.read_pickle(result_file)
+    else:
+        result_df = pd.DataFrame(
+            columns=['Measurement', 'Weight', 'Std', 'Model', 'Params', 'PLm', 'NumBins', "Distances"])
 
     for measurement in measurements:
         print(F"--------------------- PATH LOSS MODEL {measurement} ---------------------")
@@ -76,7 +80,8 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
         plm = pld0_ols + 10 * n_ols * np.log10(d_plot_uncensored)
         two_sigma_bound = np.zeros(len(d_plot_uncensored)) + 2 * sigma_ols
 
-        result_df = result_df.append({
+        df_data = {
+            'Index': F"{measurement}-None-constant-OLS",
             'Measurement': measurement,
             'Weight': 'None',
             'Std': 'constant',
@@ -88,12 +93,14 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
             'TwoSigmaBound': two_sigma_bound,
             "Censored": "Uncensored",
             "MLValue": None,
-        }, ignore_index=True)
+        }
+
+        result_df = util.update(result_df, df_data)
         print(result_df.iloc[-1, :])
 
         for (i, (sigma, sigma_name)) in enumerate(zip([sigma_ols], ["constant"])):
 
-        #for (i, (sigma, sigma_name)) in enumerate(zip([sigma_ols, [0, sigma_ols]], ["constant", "distant_dependent"])):
+            # for (i, (sigma, sigma_name)) in enumerate(zip([sigma_ols, [0, sigma_ols]], ["constant", "distant_dependent"])):
 
             for weight_type, weight_name in zip([None, w_lin, w_log, w_sq], ["No", "Linear", "Log10", "Square"]):
                 res = model.ml_with_constraints(d0=1, d=d_uncensored, pld=pld_uncensored, c=148, pld0=pld0_ols, n=n_ols,
@@ -118,7 +125,8 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
 
                 ml_value = model.ml_value(pld=pld_uncensored, sigma_est=sigma_est, plm_est=plm_est)
 
-                result_df = result_df.append({
+                df_data = {
+                    'Index': F"{measurement}-{weight_name}-{sigma_name}-Single Slope",
                     'Measurement': measurement,
                     'Weight': weight_name,
                     'Std': sigma_name,
@@ -129,8 +137,11 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
                     'Distances': d_plot_uncensored,
                     'TwoSigmaBound': two_sigma_bound,
                     "Censored": "Uncensored",
-                    "MLValue": ml_value
-                }, ignore_index=True)
+                    "MLValue": ml_value,
+                    "OptimizeResult": res
+                }
+
+                result_df = util.update(result_df, df_data)
 
                 print(result_df.iloc[-1, :])
 
@@ -162,7 +173,8 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
                 ml_value = model.ml_value(pld=pld_all, plm_est=plm_est, sigma_est=sigma_est,
                                           censored_mask=censored_packets_mask)
 
-                result_df = result_df.append({
+                result_df = {
+                    'Index': F"{measurement}-{weight_name}-{sigma_name}-Single Slope",
                     'Measurement': measurement,
                     'Weight': weight_name,
                     'Std': sigma_name,
@@ -175,7 +187,9 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
                     "Censored": "Censored",
                     "MLValue": ml_value,
                     "OptimizeResult": res
-                }, ignore_index=True)
+                }
+
+                result_df = util.update(result_df, df_data)
 
                 print(result_df.iloc[-1, :])
 
@@ -188,7 +202,8 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
         print(F"Done for {measurement}")
 
         print(F"Processing the dual-slope model")
-        #for (i, (sigma, sigma_name)) in enumerate( zip([sigma_ols, [0, 0, sigma_ols]], ["constant", "distant_dependent"])):
+        # for (i, (sigma, sigma_name)) in enumerate( zip([sigma_ols, [0, 0, sigma_ols]], ["constant",
+        # "distant_dependent"])):
         for (i, (sigma, sigma_name)) in enumerate(
                 zip([sigma_ols], ["constant"])):
 
@@ -245,7 +260,8 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
                 ml_value = model.ml_value(pld=pld_all, plm_est=plm_est, sigma_est=sigma_est,
                                           censored_mask=censored_packets_mask)
 
-                result_df = result_df.append({
+                result_df = {
+                    'Index': F"{measurement}-{weight_name}-{sigma_name}-Dual Slope",
                     'Measurement': measurement,
                     'Weight': weight_name,
                     'Std': sigma_name,
@@ -258,8 +274,10 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
                     "Censored": "Censored",
                     "MLValue": ml_value,
                     "OptimizeResult": res
-                }, ignore_index=True)
+                }
+
+                result_df = util.update(result_df, df_data)
 
                 print(result_df.iloc[-1, :])
 
-result_df.to_pickle(output_file)
+result_df.to_pickle(result_file)

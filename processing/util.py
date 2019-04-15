@@ -24,6 +24,15 @@ import numpy as np
 import pandas as pd
 
 
+def update(df, data) -> pd.DataFrame:
+    cond = data['Index'] != df['Index']
+    if False in cond:
+        df.where(cond=cond, other=pd.DataFrame(data), inplace=True)
+    else:
+        df = df.append(data, ignore_index=True)
+    return df
+
+
 def get_geojson_grid(df, n, plot_snr):
     """
 
@@ -131,8 +140,10 @@ def get_geojson_grid(df, n, plot_snr):
     colormap.caption = caption.upper()
     return all_boxes, colormap
 
+
 def numberOfRows(df):
     return len(df.index)
+
 
 def onlyPackets(df):
     return df[df.isPacket == 1]

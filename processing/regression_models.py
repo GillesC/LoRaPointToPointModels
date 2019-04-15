@@ -260,13 +260,13 @@ def ml_with_constraints(d0, d, pld, c, pld0, n, sigma, censored_mask=None, weigh
 
 
 def ml_dual_slope_with_constraints(d0, d, pld, x0, c=148, censored_mask=None, weights=None, censored=True):
+    assert len(x0) == 5, ValueError("Only constant variance is now supported")
+
     def con(x):
         _n_1 = x[1]
         _n_2 = x[2]
-        _sigma = x[4:]
-        _sigma = np.repeat(_sigma, len(d))
-
-        return _sigma.min()
+        _sigma = x[4]
+        return min(_n_1, _sigma.min(), _n_2)
 
     cons = [{
         'type': 'ineq',
