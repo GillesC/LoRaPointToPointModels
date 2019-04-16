@@ -1,7 +1,6 @@
 *.pyc
 .vscode/
 *.html
-*.pkl
 .idea/encodings.xml
 .idea/modules.xml
 .idea/vcs.xml
