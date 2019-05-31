@@ -22,9 +22,8 @@ def ml(d0, d, pld, c, pld0, n, sigma, censored_mask=None, weights=None, censored
         pld_uncensored = pld
 
     def llf(x):
-        _pld0 = x[0]
-        _n = x[1]
-        _sigma = x[2:]  # in case of _sigma ~d -> a and b
+        _n = x[0]
+        _sigma = x[1:]  # in case of _sigma ~d -> a and b
 
         # if _n < 1:
         #    return float('inf')
@@ -36,7 +35,7 @@ def ml(d0, d, pld, c, pld0, n, sigma, censored_mask=None, weights=None, censored
         else:
             _sigma = np.repeat(_sigma, d.shape)
 
-        plm = 10 * _n * np.log10(d / d0) + _pld0
+        plm = 10 * _n * np.log10(d / d0) + pld0
 
         _sigma[_sigma < 0.001] = 0.001
 
@@ -61,7 +60,7 @@ def ml(d0, d, pld, c, pld0, n, sigma, censored_mask=None, weights=None, censored
 
         return - np.sum(llh)
 
-    x0 = np.array([pld0, n])
+    x0 = np.array([n])
     x0 = np.append(x0, sigma)
     return scipy.optimize.fmin(llf, x0, maxiter=20000, maxfun=20000, disp=False, full_output=True)
 
@@ -80,8 +79,8 @@ def ols(d0, d, pld):
     sigma = np.std(epl - pld)
     return pld0, n, sigma
 
-
-def ml_dual_slope(d0, d, pld, x0, c=148, censored_mask=None, weights=None, censored=True, fixed_d_break=False):
+"""
+def ml_dual_slope(d0, d, pld, x0, pld0, c=148, censored_mask=None, weights=None, censored=True, fixed_d_break=False):
     assert (censored_mask is not None) == censored, ValueError("Define the censored_mask if censored data is included")
 
     if fixed_d_break:
@@ -163,7 +162,7 @@ def ml_dual_slope(d0, d, pld, x0, c=148, censored_mask=None, weights=None, censo
         return - np.sum(llh)
 
     return scipy.optimize.fmin(llf, x0, maxiter=20000, maxfun=20000, disp=False, full_output=True)
-
+"""
 
 def ml_value(pld, plm_est, sigma_est, censored_mask=None, c=148):
     if censored_mask is not None:
@@ -184,8 +183,8 @@ def ml_with_constraints(d0, d, pld, c, pld0, n, sigma, censored_mask=None, weigh
     assert (censored_mask is not None) == censored, ValueError("Define the censored_mask if censored data is included")
 
     def con(x):
-        _sigma = x[2:]
-        _n = x[1]
+        _sigma = x[1:]
+        _n = x[0]
         _a = 0
         _b = 0
 
@@ -216,9 +215,8 @@ def ml_with_constraints(d0, d, pld, c, pld0, n, sigma, censored_mask=None, weigh
 
 
     def llf(x):
-        _pld0 = x[0]
-        _n = x[1]
-        _sigma = x[2:]  # in case of _sigma ~d -> a and b
+        _n = x[0]
+        _sigma = x[1:]  # in case of _sigma ~d -> a and b
 
         # if _n < 1:
         #    return float('inf')
@@ -230,7 +228,7 @@ def ml_with_constraints(d0, d, pld, c, pld0, n, sigma, censored_mask=None, weigh
         else:
             _sigma = np.repeat(_sigma, d.shape)
 
-        plm = 10 * _n * np.log10(d / d0) + _pld0
+        plm = 10 * _n * np.log10(d / d0) + pld0
 
         if censored:
             plm_uncensored = plm[uncensored_mask].copy()
@@ -253,13 +251,13 @@ def ml_with_constraints(d0, d, pld, c, pld0, n, sigma, censored_mask=None, weigh
 
         return - np.sum(llh)
 
-    x0 = np.array([pld0, n])
+    x0 = np.array([n])
     x0 = np.append(x0, sigma)
     return scipy.optimize.minimize(llf, x0, constraints=cons, method='COBYLA', options={
         'maxiter': 200000
     })
 
-
+"""
 def ml_dual_slope_with_constraints(d0, d, pld, x0, c=148, censored_mask=None, weights=None, censored=True):
     assert len(x0) == 5, ValueError("Only constant variance is now supported")
 
@@ -339,3 +337,4 @@ def ml_dual_slope_with_constraints(d0, d, pld, x0, c=148, censored_mask=None, we
     return scipy.optimize.minimize(llf, x0, constraints=cons, method='COBYLA', options={
         'maxiter': 20000000
     })
+"""

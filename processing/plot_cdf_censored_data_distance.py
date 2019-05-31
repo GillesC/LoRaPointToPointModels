@@ -44,9 +44,11 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
     for measurement in measurements:
         print(F"--------------------- Environment {measurement} ---------------------")
 
-        if measurement == "seaside":
+        #if measurement == "seaside":
+        if True:
             df = data[measurement]["data"]
-            censored_packets_mask = data[measurement]["censored_packets_mask"]
+            df = df.loc[(df["sf"] == 12), :]
+            censored_packets_mask =(df["isPacket"] == 0)
 
             df_censored = df.loc[censored_packets_mask]
             distances = df_censored.loc[df_censored["distance"] > 1]["distance"]
@@ -96,8 +98,12 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
 
             #plt.xticks(list(plt.xticks()[0]) + x[q3] + x[q2] + x[q1])
 
+            
 plt.xlabel(r'Distance (m)')
 plt.ylabel(r'CDF uncensored samples')
 
-lm.format_axes(ax)
-lm.save(F"cdf_uncensored_distances.tex", plt=plt)
+plt.show()
+
+#lm.format_axes(ax)
+#lm.save(F"cdf_censored_distances_all.tex", plt=plt)
+#

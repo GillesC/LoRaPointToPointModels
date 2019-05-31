@@ -24,7 +24,7 @@ import numpy as np
 import pandas as pd
 import scipy.constants
 
-import regression_models as model
+import regression_models_v2 as model
 from get_weights import get_weights
 import util as util
 
@@ -37,23 +37,31 @@ input_path = os.path.abspath(os.path.join(
 input_file_name = "processed_data_with_censored_data.pkl"
 input_file_path = os.path.join(input_path, input_file_name)
 
-
 import datetime
+
 now = datetime.datetime.now()
-result_file = os.path.abspath(os.path.join(input_path, F"estimated_path_loss_{now.year}{now.month}{now.day}_{now.minute}.pkl"))
+result_file = os.path.abspath(
+    os.path.join(input_path, F"estimated_path_loss_{now.year}{now.month}{now.day}_{now.minute}.pkl"))
 
 sf_pl_th_mapping = {
     6: 130,
-    7:135,
-    8:138,
-    9:141,
-    10:144,
-    11:145,
-    12:148
+    7: 135,
+    8: 138,
+    9: 141,
+    10: 144,
+    11: 145,
+    12: 148
 }
 
-proccess_dual_slope = True
+pld0_mapping = {
+    "forest": 140.5,
+    "campus" : 135,
+    "seaside" : 129.5
+}
 
+d0 = 100
+
+proccess_dual_slope = False
 
 with open(os.path.join(path_to_measurements, "measurements.json")) as f:
     config = json.load(f)
@@ -79,7 +87,6 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
 
         df_uncensored = df.loc[uncensored_packets_mask]
 
-
         d_uncensored = df_uncensored["distance"].values
         pld_uncensored = df_uncensored["pl_db"].values
         sf_uncensored = df_uncensored["sf"].values
@@ -96,7 +103,7 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
         w_log = get_weights(d_uncensored, weight_type='log10', num_bins=num_bins)
         w_sq = get_weights(d_uncensored, weight_type='square', num_bins=num_bins)
 
-        (pld0_ols, n_ols, sigma_ols) = model.ols(d0=1, d=d_uncensored, pld=pld_uncensored)
+        (pld0_ols, n_ols, sigma_ols) = model.ols(d0=100, d=d_uncensored, pld=pld_uncensored)
 
         plm = pld0_ols + 10 * n_ols * np.log10(d_plot_uncensored)
         two_sigma_bound = np.zeros(len(d_plot_uncensored)) + 2 * sigma_ols
@@ -124,12 +131,15 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
             # for (i, (sigma, sigma_name)) in enumerate(zip([sigma_ols, [0, sigma_ols]], ["constant", "distant_dependent"])):
 
             for weight_type, weight_name in zip([None, w_lin, w_log, w_sq], ["No", "Linear", "Log10", "Square"]):
-                res = model.ml_with_constraints(d0=1, d=d_uncensored, pld=pld_uncensored, c=c_uncensored, pld0=pld0_ols, n=n_ols,
+                res = model.ml_with_constraints(d0=100, d=d_uncensored, pld=pld_uncensored, c=c_uncensored, pld0=pld0_mapping[measurement],
+                                                n=n_ols,
                                                 sigma=sigma, weights=weight_type,
                                                 censored=False)
 
                 print(res)
-                (pld0, n, *_) = res.x
+                (n, *_) = res.x
+
+                pld0 = pld0_mapping[measurement]
 
                 plm = pld0 + 10 * n * np.log10(d_plot_uncensored)
                 if len(_) == 1:
@@ -172,12 +182,13 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
 
             for weight_type, weight_name in zip([None, w_lin_all, w_log_all, w_sq_all],
                                                 ["No", "Linear", "Log10", "Square"]):
-                res = model.ml_with_constraints(d0=1, d=d_all, pld=pld_all, c=c_all, pld0=pld0_ols, n=n_ols,
+                res = model.ml_with_constraints(d0=100, d=d_all, pld=pld_all, c=c_all, pld0=pld0_mapping[measurement], n=n_ols,
                                                 sigma=sigma, weights=weight_type, censored_mask=censored_packets_mask,
                                                 censored=True)
 
                 print(res)
-                (pld0, n, *_) = res.x
+                (n, *_) = res.x
+                pld0 = pld0_mapping[measurement]
                 plm = pld0 + 10 * n * np.log10(d_plot)
                 plm_est = pld0 + 10 * n * np.log10(d_all)
 
@@ -226,6 +237,7 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
             print(F"Skipping the dual-slope model")
             continue
 
+        assert not proccess_dual_slope, ValueError("Not supported yet")
 
         print(F"Processing the dual-slope model")
 
@@ -285,7 +297,7 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
                         d_all[mask_above_d_break_est] / d_break) + b
 
                 ml_value = model.ml_value(pld=pld_all, plm_est=plm_est, sigma_est=sigma_est,
-                                          censored_mask=censored_packets_mask, c= c_all)
+                                          censored_mask=censored_packets_mask, c=c_all)
 
                 df_data = {
                     'Index': F"{measurement}-{weight_name}-{sigma_name}-Dual Slope",

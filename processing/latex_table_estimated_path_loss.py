@@ -32,7 +32,9 @@ input_path = os.path.abspath(os.path.join(
     currentDir, '..', 'result'))
 
 input_file_measurements_path = os.path.join(input_path, "processed_data_with_censored_data.pkl")
-input_file_estimated_pl_path = os.path.join(input_path, "estimated_path_loss.pkl")
+input_file_estimated_pl_path = os.path.join(input_path, "estimated_path_loss_2019514_11.pkl")
+
+print(F"Getting data from {input_file_estimated_pl_path}")
 
 with open(os.path.join(path_to_measurements, "measurements.json")) as f:
     config = json.load(f)

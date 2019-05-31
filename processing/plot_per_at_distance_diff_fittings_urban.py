@@ -24,10 +24,8 @@ import warnings
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import scipy.constants
-
-import regression_models as model
-from get_weights import get_weights
+from scipy.stats import norm
+from LatexifyMatplotlib import LatexifyMatplotlib as lm
 
 currentDir = os.path.dirname(os.path.abspath(__file__))
 path_to_measurements = os.path.abspath(os.path.join(
@@ -41,13 +39,9 @@ input_file_estimated_pl_path = os.path.join(input_path, "estimated_path_loss_201
 
 print(F"Getting data from {input_file_estimated_pl_path}")
 
-white_list = np.array(["Single Slope"])
-black_list = np.array(["distant_dependent"])
-ht = 1.75  # m
-hr = 1.75
-wavelength = scipy.constants.speed_of_light / (868 * 10 ** 6)
+white_list = np.array(["Single Slope", "constant"])
+black_list = np.array([])
 
-d_break_theoretical = (4 * ht * hr) / wavelength
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
@@ -57,6 +51,11 @@ def all_white_listed(white_list, values):
             return False
     return True
 
+d0 = 100
+
+fig, ax = plt.subplots(figsize=(4, 3))
+lm.latexify()
+plt.xscale('log')
 
 with open(os.path.join(path_to_measurements, "measurements.json")) as f:
     config = json.load(f)
@@ -67,10 +66,12 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
 
     for measurement in measurements:
         print(F"--------------------- PATH LOSS MODEL {measurement} ---------------------")
-        fig = plt.figure(figsize=(4, 3))
-        plt.xscale('log')
+
+        if measurement != "campus":
+            continue
 
         df = data[measurement]["data"]
+
         d_all = df["distance"].values
         uncensored_packets_mask = np.invert(data[measurement]["censored_packets_mask"])
 
@@ -78,33 +79,35 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
         d_uncensored = df_uncensored["distance"].values
         pld_uncensored = df_uncensored["pl_db"].values
 
-        plt.scatter(d_uncensored, pld_uncensored, marker='x', label="Measured Path Loss", s=1, c='0.75')
-
         df = path_loss_estimates.loc[path_loss_estimates['Measurement'] == measurement]
 
-        if "Dual Slope" in white_list and "Dual Slope" not in black_list:
-            plt.axvline(d_break_theoretical, ls="--", c='0.75')
-
         for ix, row in df.iterrows():
-
             if all_white_listed(white_list, row.values) and not any(x in black_list for x in row.values):
-                print(row['Params'])
+                (Pld0, n, _sigma) = row['Params']
 
-                sigma_bound_up = row['PLm'] + row['TwoSigmaBound'] / 2
-                sigma_bound_down = row['PLm'] - row['TwoSigmaBound'] / 2
-                p = plt.plot(row['Distances'], row['PLm'],
-                             label=F"{row['Weight']}{row['Std']}{row['Model']}{row['Censored']}{row['MLValue']}")
-                plt.fill_between(x=row['Distances'], y1=sigma_bound_down, y2=sigma_bound_up, alpha=0.05)
-                plt.plot(row['Distances'], sigma_bound_down, color=p[0].get_color(), ls="--", alpha=0.5)
-                plt.plot(row['Distances'], sigma_bound_up, color=p[0].get_color(), ls="--", alpha=0.5)
+                d = np.array(range(int(d_all.min()), int(d_all.max())))
 
-        plt.axhline(148, ls="--", c='0.75')
-        plt.xlabel(r'Log distance (m)')
-        plt.ylabel(r'Path Loss (dB)')
+                plm = Pld0 + 10 * n * np.log10(d/d0)
+                sigma = np.repeat(_sigma, len(d))
 
-        plt.yticks(list(plt.yticks()[0]) + [148])
+                llh_censored = 1 - norm.cdf((148 - plm) / sigma)
+                if row['Censored'] == "Uncensored":
+                    ls ="--"
+                else:
+                    ls ="-"
+                p = plt.plot(d, llh_censored, ls=ls, label=F"{row['Weight']} {row['Censored']}")
+
+                #d = range(int(d_all.max()), 4200)
+                #plm = Pld0 + 10 * n * np.log10(d)
+                #sigma = np.repeat(_sigma, len(d))
+
+                #llh_censored = 1 - norm.cdf((148 - plm) / sigma)
+                #plt.plot(d, llh_censored, color=p[0].get_color(), ls="--", alpha=0.5)
+
+        plt.xlabel(r'Distance (m)')
+        plt.ylabel(r'Probability of Receiving a Packet below \(PL_{\textrm{th}}\)')
 
         plt.legend()
-        plt.show()
 
-        print(F"Done for {measurement}")
+        lm.format_axes(ax)
+        lm.save(F"per_{measurement}_fitted_all.tex", plt=plt)

@@ -23,12 +23,7 @@ from math import sqrt
 import matplotlib as mpl
 import matplotlib2tikz
 
-#mpl.use('pgf')
-
 SPINE_COLOR = 'gray'
-
-#assert mpl.get_backend() is 'pgf', ImportError("PGF backend is not used")
-
 
 def latexify(fig_width=None, fig_height=None, columns=1):
     """Set up matplotlib's RC params for LaTeX plotting.
@@ -137,6 +132,8 @@ def save(filename, scale_legend=None, show=False, plt=None):
     if show:
         plt.show()
 
-    matplotlib2tikz.save(out, figure=fig, textsize=8, extra_axis_parameters=extra_axis_param, float_format="{:.5f}")
+    print(r"Replace 'table' with 'table[row sep=\\]' in the tex file. I have opened an issue in matplotlib2tikz; let's hope that this is resolved in a future release")
+
+    matplotlib2tikz.save(out, figure=fig, textsize=8, extra_axis_parameters=extra_axis_param, float_format="{:.5f}", table_row_sep=r"\\")
 
 

@@ -40,6 +40,9 @@ output_file = os.path.abspath(os.path.join(input_path, "estimated_path_loss_a_po
 
 result_df = pd.DataFrame(columns=['Measurement', 'Weight', 'Std', 'Model', 'Params', 'PLm', 'NumBins', "Distances"])
 
+
+
+
 with open(os.path.join(path_to_measurements, "measurements.json")) as f:
     config = json.load(f)
     measurements = config["measurements"]
