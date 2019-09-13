@@ -21,7 +21,7 @@ r"""
 import os
 from math import sqrt
 import matplotlib as mpl
-import matplotlib2tikz
+import tikzplotlib
 
 SPINE_COLOR = 'gray'
 
@@ -133,7 +133,8 @@ def save(filename, scale_legend=None, show=False, plt=None):
         plt.show()
 
     print(r"Replace 'table' with 'table[row sep=\\]' in the tex file. I have opened an issue in matplotlib2tikz; let's hope that this is resolved in a future release")
+    print("If you have still problems, you will probably need to add some newlines manually in the file (because the inline is too long)")
 
-    matplotlib2tikz.save(out, figure=fig, textsize=8, extra_axis_parameters=extra_axis_param, float_format="{:.5f}", table_row_sep=r"\\")
+    tikzplotlib.save(out, figure=fig, textsize=8, extra_axis_parameters=extra_axis_param, float_format="{:.5f}", table_row_sep=r"\\")
 
 

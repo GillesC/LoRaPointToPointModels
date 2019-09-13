@@ -2,7 +2,8 @@
 	"measurements" : [
 		"campus",
 		"seaside",
-		"forest"
+		"forest",
+		"leuven"
 	],
 
 	"campus" : {
@@ -14,5 +15,9 @@
 	},
 	"forest" : {
 		"center": [51.1638853, 3.5785536]
+	},
+	"leuven":
+	{
+		"center": [50.877761, 4.704440]
 	}
 }
