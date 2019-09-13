@@ -256,7 +256,7 @@ def filter(data):
 
     data.loc[:, "rss"] = - 157 + rssi_correction
 
-    data = data[data["rss"] < 20]
+    data = data[data["rss"] < 0]
     # remove unneeded columns
     cols = ["sat", "freqError", "alt", "satValid", "hdopVal", "hdopValid", "vdopVal", "pdopVal", "locValid", "age",
             "ageValid", "altValid", "course", "courseValid", "speed", "speedValid", "rssi", "correction_factor"]
