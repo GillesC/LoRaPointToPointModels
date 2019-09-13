@@ -1,0 +1,3 @@
+[submodule "data/LoRaPointToPointMeasurementData"]
+	path = data/LoRaPointToPointMeasurementData
+	url = https://github.com/DRAMCO/LoRaPointToPointMeasurementData
