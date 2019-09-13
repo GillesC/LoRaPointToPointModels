@@ -1,4 +1,3 @@
-
 import os
 import pickle
 
@@ -7,6 +6,8 @@ import numpy as np
 from matplotlib.ticker import ScalarFormatter
 
 from LatexifyMatplotlib import LatexifyMatplotlib as lm
+
+from prettytable import PrettyTable
 
 currentDir = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.abspath(os.path.join(
@@ -50,6 +51,26 @@ ax.scatter(df.distance, df.pl_db, marker='x', label="Measured Path Loss", s=1, c
 
 ax.set_xlabel(r'Log distance (m)')
 ax.set_ylabel(r'Path Loss (dB)')
+
+print("Error results:")
+t = PrettyTable(['Model', 'RMSE', 'AME'])
+
+
+def rmse(predictions):
+    return np.sqrt(np.mean((predictions - df.pl_db) ** 2))
+
+
+def mae(predictions):
+    return np.mean(np.absolute(predictions - df.pl_db))
+
+
+t.add_row(['Our Model (ML)', rmse(pl_ml), mae(pl_ml)])
+t.add_row(['Our Model (OLS)', rmse(pl_ols), mae(pl_ols)])
+t.add_row(['Oulu Model (Car)', rmse(pl_oulu_car), mae(pl_oulu_car)])
+t.add_row(['Oulu Model (Boat)', rmse(pl_oulu_boat), mae(pl_oulu_boat)])
+t.add_row(['Okumura Hata Model', rmse(pl_hata), mae(pl_hata)])
+t.add_row(['Cost Hata Model', rmse(pl_cost_hata), mae(pl_cost_hata)])
+print(t)
 
 lm.format_axes(ax)
 lm.legend(plt)

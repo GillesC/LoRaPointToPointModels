@@ -1,4 +1,4 @@
-r"""
+"""
     ____  ____      _    __  __  ____ ___
    |  _ \|  _ \    / \  |  \/  |/ ___/ _ \
    | | | | |_) |  / _ \ | |\/| | |  | | | |
@@ -17,27 +17,21 @@ r"""
     Description:
 """
 
-#import branca.colormap as cm
+import branca.colormap as cm
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 
-def update(df, data):
-    if data['Index'] in df['Index']:
-        cond = df['Index'] != data['Index']
-        df.where(cond=cond, other=pd.DataFrame(data), inplace=True)
-    else:
-        df = df.append(data, ignore_index=True)
-    return df
-
-"""
 def get_geojson_grid(df, n, plot_snr):
-    "
+    """
+
     :param df:
     :param n:
     :param plot_snr:
     :return:
-    "
+    """
     if plot_snr:
         values_to_plot_id = 'snr'
         caption = 'snr'
@@ -136,11 +130,9 @@ def get_geojson_grid(df, n, plot_snr):
         min_val, max_val)
     colormap.caption = caption.upper()
     return all_boxes, colormap
-"""
 
 def numberOfRows(df):
     return len(df.index)
-
 
 def onlyPackets(df):
     return df[df.isPacket == 1]
@@ -195,26 +187,48 @@ def filter(data):
     print(F" Packet points {current_rows_data}/{total_rows} {(current_rows_data / total_rows) * 100:.1f}% rows")
 
     with_gps_data = data[(data.sat > 0) & data.isPacket > 0].shape[0]
-    print(" Packet points with GPS {0}/{1} {2:.1f}% rows".format(
+    if with_gps_data:
+     print(" Packet points with GPS {0}/{1} {2:.1f}% rows".format(
         with_gps_data, current_rows_data, (with_gps_data / current_rows_data) * 100))
 
     data = data[data.sat > 0]
-    data = data[data.ageValid > 0]
-    data = data[data.hdopVal < 75]
-    data = data[data.vdopVal < 75]
-    data = data[data.pdopVal < 75]
+    if 'ageValid' in data.columns: data = data[data.ageValid > 0]
+    if 'hdopVal' in data.columns: data = data[data.hdopVal < 75]
+    if 'vdopVal' in data.columns: data = data[data.vdopVal < 75]
+    if 'pdopVal' in data.columns: data = data[data.pdopVal < 75]
     data = data[data.locValid > 0]
     data = data[data.ageValid > 0]
 
     # print(
     #    F" Packet points with GPS without RSS filtering "
     #    F"{data[data.isPacket > 0].shape[0]}/{current_rows_data} {(data[data.isPacket > 0].shape[0] / current_rows_data) * 100:.1f}% rows")
+    data.loc[:,'time'] = data['time'].str.strip() # remove spaces
+    data_time_with_seconds = pd.to_datetime(data['time'], format='%m/%d/%Y %H:%M:%S', utc=True, errors='coerce')
+    data_time_without_seconds = pd.to_datetime(data['time'], format='%m/%d/%Y %H:%M', utc=True, errors='coerce')
 
-    data.loc[:, 'time'] = pd.to_datetime(data['time'], format='%m/%d/%Y %H:%M:%S ', utc=True, errors='coerce')
+    date_time = []
+    for x,y in zip(data_time_with_seconds,data_time_without_seconds):
+       if type(x) is pd.Timestamp:
+           x_is_nan = False
+       if type(x) is pd._libs.tslibs.nattype.NaTType:
+           x_is_nan = True
+       if type(y) is pd.Timestamp:
+           y_is_nan = False
+       elif type(y) is pd._libs.tslibs.nattype.NaTType:
+           y_is_nan = True
+       if (x_is_nan and y_is_nan) or (not x_is_nan and not y_is_nan):
+           ValueError("Cannot be both nan!")
+       date_time.append(x if y_is_nan else y)
+#
+
+    data.loc[:, 'time'] = pd.Series(date_time)
+    #data.loc[:, 'time'] = pd.to_datetime(data['time'], utc=True, errors='coerce')
+
+    #data.loc[:,'time'] = pd.to_datetime(data['time'], format='%m/%d/%Y %H:%M:%S', utc=True, errors='coerce')
     # removes NaT if datatime conversion was unsuccessful
     data.dropna(subset=['time'], inplace=True)
 
-    data = data[(data.sf == 12) | (data.sf == 9) | (data.sf == 7)]
+    if 'sf' in data.columns: data = data[(data.sf == 12) | (data.sf == 9) | (data.sf == 7)]
     # print(" Packet points with GPS with SF filtering {0}/{1} {2:.1f}% rows".format(
     #    data[data.isPacket > 0].shape[0], current_rows_data,
     #    (data[data.isPacket > 0].shape[0] / current_rows_data) * 100))
@@ -247,12 +261,15 @@ def filter(data):
     cols = ["sat", "freqError", "alt", "satValid", "hdopVal", "hdopValid", "vdopVal", "pdopVal", "locValid", "age",
             "ageValid", "altValid", "course", "courseValid", "speed", "speedValid", "rssi", "correction_factor"]
     cols = [c for c in cols if c in data.columns]
+
     data.drop(columns=cols, axis=1, inplace=True)
 
+
     current_rows_data_after_filtering = data[data.isPacket > 0].shape[0]
-    print(" Packet points after filtering {0}/{1} {2:.1f}% rows".format(
-        current_rows_data_after_filtering, current_rows_data,
-        (current_rows_data_after_filtering / current_rows_data) * 100))
+    if (current_rows_data_after_filtering):
+        print(" Packet points after filtering {0}/{1} {2:.1f}% rows".format(
+            current_rows_data_after_filtering, current_rows_data,
+            (current_rows_data_after_filtering / current_rows_data) * 100))
 
     return data
 
