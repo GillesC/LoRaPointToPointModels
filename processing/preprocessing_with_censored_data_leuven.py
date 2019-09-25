@@ -137,13 +137,13 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
     # plot histogram of distances where we have packet
     # and where we expeced a packet
 
-    bin_edges = np.linspace(0, np.max(distances_expected), 100, endpoint=True)
+    bin_edges = np.linspace(0, np.max(distances_expected), 10, endpoint=True)
 
     hist_val_expected, bin_edges = np.histogram(distances_expected, bins=bin_edges)
     hist_val_packets, _ = np.histogram(distances_packets, bins=bin_edges)
 
     per = 1 - hist_val_packets / hist_val_expected
-    plt.scatter(x=bin_edges[:-1], y=per)
+    plt.scatter(x=bin_edges[1:], y=per)
     # plt.xscale("log")
     plt.show()
 
@@ -151,7 +151,7 @@ with open(os.path.join(path_to_measurements, "measurements.json")) as f:
     print(bin_edges)
 
     for x, y in zip(bin_edges[1:], per):
-        print(F"{x} {y}")
+        print(F"{x} {y}\\\\")
 
     df = pd.DataFrame(df_packets, columns=df_copy.columns)
 
