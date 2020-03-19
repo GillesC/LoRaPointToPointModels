@@ -32,7 +32,7 @@ hb = 1.5
 hm = 1.5
 Ch = 0.8 + (1.1 * np.log10(fc) - 0.7) * hm - 1.56 * np.log10(fc)
 hata = 13.82 * np.log10(hb) - Ch + (44.9 - 6.55 * np.log10(hb)) * np.log10(df.distance / 1000)
-pl_hata = 69.55 + 26.16 * np.log(fc) + hata
+pl_hata = 69.55 + 26.16 * np.log10(fc) + hata
 
 pl_cost_hata = 46.3 + 33.9 * np.log10(fc) + hata
 
